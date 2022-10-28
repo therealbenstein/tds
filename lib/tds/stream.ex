@@ -57,7 +57,7 @@ defimpl Collectable, for: Tds.Stream do
 
   def into(%Stream{conn: %DBConnection{}} = stream) do
     %Stream{conn: conn, query: query, params: params, options: opts} = stream
-    opts = Keyword.put(opts, :postgrex_copy, true)
+    opts = Keyword.put(opts, :tds_copy, true)
 
     case query do
       %Query{} ->
