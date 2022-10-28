@@ -20,6 +20,7 @@ defmodule Tds.Messages do
   defrecord :msg_transmgr, [:command, :name, :isolation_level]
   defrecord :msg_rpc, [:proc, :query, :params]
   defrecord :msg_attn, []
+  defrecord :msg_copy_data, [:data]
 
   # responses
   defrecord :msg_preloginack, [:response]

@@ -236,4 +236,44 @@ defmodule Tds do
   """
   @spec encode_uuid!(any) :: <<_::128>>
   def encode_uuid!(value), do: UUID.dump!(value)
+
+
+  @doc """
+  Returns a stream for a query on a connection.
+  Stream consumes memory in chunks of at most `max_rows` rows (see Options).
+  This is useful for processing _large_ datasets.
+  A stream must be wrapped in a transaction and may be used as an `Enumerable`
+  or a `Collectable`.
+  When used as an `Enumerable` with a `COPY .. TO STDOUT` SQL query no other
+  queries or streams can be interspersed until the copy has finished. Otherwise
+  it is possible to intersperse enumerable streams and queries.
+  When used as a `Collectable` the values are passed as copy data with the
+  query. No other queries or streams can be interspersed until the copy has
+  finished. If the query is not copying to the database the copy data will still
+  be sent but is silently discarded.
+  ### Options
+    * `:max_rows` - Maximum numbers of rows in a result (default to `#{@max_rows}`)
+    * `:decode_mapper` - Fun to map each row in the result to a term after
+    decoding, (default: `fn x -> x end`);
+    * `:mode` - set to `:savepoint` to use a savepoint to rollback to before an
+    execute on error, otherwise set to `:transaction` (default: `:transaction`);
+  ## Examples
+      Tds.transaction(pid, fn(conn) ->
+        query = Tds.prepare!(conn, "", "COPY posts TO STDOUT")
+        stream = Tds.stream(conn, query, [])
+        result_to_iodata = fn(%Tds.Result{rows: rows}) -> rows end
+        Enum.into(stream, File.stream!("posts"), result_to_iodata)
+      end)
+      Tds.transaction(pid, fn(conn) ->
+        stream = Tds.stream(conn, "COPY posts FROM STDIN", [])
+        Enum.into(File.stream!("posts"), stream)
+      end)
+  """
+  @spec stream(DBConnection.t(), iodata | Tds.Query.t(), list, [option]) ::
+          Tds.Stream.t()
+        when option: execute_option | {:max_rows, pos_integer}
+  def stream(%DBConnection{} = conn, query, params, options \\ []) do
+    options = Keyword.put_new(options, :max_rows, @max_rows)
+    %Tds.Stream{conn: conn, query: query, params: params, options: options}
+  end
 end
